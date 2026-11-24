@@ -1,86 +1,32 @@
-# Docker 26.1.4 离线安装工具
+# RDK S600 ARM64 Docker 一键安装
 
-[English](README.md)
+本分支 `codex/rdk-s600-arm64` 面向 D-Robotics RDK S600、RDK OS V5.1.0（Ubuntu Noble）、aarch64/arm64 和 systemd。
 
-本仓库提供一个交互式离线安装脚本，用于在采用 systemd 的 x86_64 Linux 系统上安装 Docker Engine 26.1.4 和 Docker Compose。
-
-## 环境要求
-
-- 64 位 x86 Linux 系统
-- systemd
-- Bash
-- root 或 `sudo` 权限
-- `/usr/bin/docker` 中尚未安装 Docker
-
-仓库已经包含 Docker、containerd、runc 和 Docker Compose 所需的二进制文件，因此执行安装时不需要访问互联网。
-
-## 安装方法
-
-克隆 `26.1.4` 分支，然后使用 root 权限运行安装脚本：
+## 安装
 
 ```bash
-git clone --branch 26.1.4 https://github.com/learnSH/docker_wa.git
+git clone --branch codex/rdk-s600-arm64 https://github.com/learnSH/docker_wa.git
 cd docker_wa
 sudo ./build.sh
 ```
 
-安装过程中需要确认两个配置：
+也可将本分支文件复制到设备后执行 `sudo ./build.sh`。需要联网访问系统 APT 源和 download.docker.com；本分支不是离线安装包。安装当前 stable 源中的 Docker CE、CLI、containerd、Buildx 和 Compose 插件，不固定为 26.1.4。
 
-1. **Docker 存储根目录**：直接回车使用 `/home`，最终 Docker 数据目录为 `/home/dockerInfo`。
-2. **非 HTTPS 私有仓库**：直接回车跳过；也可以输入域名或 IPv4 地址及可选端口，例如 `registry.example.com:5000` 或 `192.168.1.20:5000`。
+脚本检查系统、架构和冲突软件包，然后配置 Docker 官方 ARM64 Noble 软件源，安装并启用服务。发现旧版发行版 Docker、独立 containerd/runc 或手工安装的 dockerd 时停止，避免自动移除已有运行环境。执行失败可修复网络或包冲突后重试。
 
-私有仓库地址不能包含 `http://`、`https://`、认证信息或路径。格式错误时，脚本会提示并要求重新输入。
+保留已有 /etc/docker/daemon.json；新安装默认数据目录为 /var/lib/docker，日志策略使用 Docker 默认值。不会自动配置 HTTP 私有仓库或加入 docker 用户组。Compose 使用 `docker compose`。
 
-> [!WARNING]
-> 通过此提示添加的仓库会写入 Docker 的 `insecure-registries` 配置。该功能仅应用于可信网络中的非 HTTPS 仓库。HTTPS 仓库不需要此配置，认证请单独使用 `docker login`。
-
-## 安装内容
-
-脚本会安装以下内容：
-
-- Docker 和 containerd 二进制文件：`/usr/bin/`
-- runc：`/usr/local/bin/runc`
-- Docker Compose：`/usr/bin/docker-compose`
-- systemd 服务文件：`/usr/lib/systemd/system/`
-- Docker daemon 配置：`/etc/docker/daemon.json`
-- Docker 数据：`<存储根目录>/dockerInfo`
-
-脚本还会创建 `docker` 用户组，将执行 `sudo` 的用户加入该组，并启用和启动 `containerd`、`docker` 服务。
-
-## Docker Daemon 配置
-
-生成的 `/etc/docker/daemon.json` 默认配置如下：
-
-```json
-{
-    "data-root": "/home/dockerInfo",
-    "insecure-registries": [],
-    "live-restore": true,
-    "log-driver": "json-file",
-    "log-opts": {
-        "max-size": "50m",
-        "max-file": "3"
-    }
-}
-```
-
-安装前，脚本会更新 `data-root`，按需添加私有仓库，并使用随包的 `dockerd` 校验最终配置。
-
-## 安装验证
-
-安装完成后，可以运行以下命令检查服务和命令行工具：
+## 验证
 
 ```bash
-systemctl is-active containerd docker
-docker version
-docker-compose version
-docker info
+sudo systemctl is-active containerd docker
+sudo docker version
+sudo docker compose version
+sudo docker run --rm hello-world
 ```
 
-如需不使用 `sudo` 运行 Docker，请先退出并重新登录，使新的 `docker` 用户组权限生效。
+安装脚本验证服务及客户端/服务端版本；hello-world 需要额外访问容器镜像仓库，由用户按需执行。RDK 内核的容器网络、cgroup 和存储驱动兼容性以设备实际运行容器为准。
 
-## 注意事项
+本分支中的旧 x86 离线资源不再用于安装。x86 离线安装请使用原 `26.1.4` 分支。
 
-- 如果 `/usr/bin/docker` 已经存在，安装脚本会直接退出，不会修改系统。
-- 安装脚本会使用生成的配置覆盖 `/etc/docker/daemon.json`。
-- 随包二进制文件仅适用于 x86_64 Linux，不能在 ARM 或 macOS 上运行。
+官方安装说明：https://docs.docker.com/engine/install/ubuntu/
