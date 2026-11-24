@@ -19,6 +19,7 @@ fi
 required_files=(
     "$SCRIPT_DIR/runc"
     "$SCRIPT_DIR/docker/dockerd"
+    "$SCRIPT_DIR/docker/docker-proxy"
     "$SCRIPT_DIR/daemon.json"
     "$SCRIPT_DIR/containerd.service"
     "$SCRIPT_DIR/docker.service"
@@ -109,7 +110,10 @@ if [ -n "$private_registry" ]; then
         "$temp_daemon_config"
 fi
 
-if ! "$SCRIPT_DIR/docker/dockerd" --validate --config-file="$temp_daemon_config"; then
+# docker-proxy 尚未安装到 PATH，预校验使用随包二进制路径。
+if ! "$SCRIPT_DIR/docker/dockerd" --validate \
+    --userland-proxy-path="$SCRIPT_DIR/docker/docker-proxy" \
+    --config-file="$temp_daemon_config"; then
     echo "daemon.json 校验失败，终止安装。"
     exit 1
 fi
