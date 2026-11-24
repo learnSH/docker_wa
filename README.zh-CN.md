@@ -1,20 +1,30 @@
-# RDK S600 ARM64 Docker 一键安装
+# Linux ARM64 Docker 离线安装
 
-本分支 `codex/rdk-s600-arm64` 面向 D-Robotics RDK S600、RDK OS V5.1.0（Ubuntu Noble）、aarch64/arm64 和 systemd。
+本分支 `codex/rdk-s600-arm64` 提供 Linux ARM64 安装包，x86-64 安装包使用 `26.1.4` 分支。当前脚本要求 aarch64 内核和运行中的 systemd，不限制发行版名称、版本或包管理器。
+
+安装使用仓库内的 Docker Engine 26.1.4 ARM64 压缩包、独立 runc 1.2.5 和 Compose v2.29.7，不访问 APT 源、Docker 下载站或镜像仓库。系统须提供 Bash、tar、gzip、systemctl、sed、groupadd、usermod 及基础文件操作命令；缺少依赖时请先通过离线系统软件包补齐。
 
 ## 安装
 
+将本分支的完整文件复制到设备，进入目录执行：
+
 ```bash
-git clone --branch codex/rdk-s600-arm64 https://github.com/learnSH/docker_wa.git
-cd docker_wa
-sudo ./build.sh
+sudo bash ./build.sh
 ```
 
-也可将本分支文件复制到设备后执行 `sudo ./build.sh`。需要联网访问系统 APT 源和 download.docker.com；本分支不是离线安装包。安装当前 stable 源中的 Docker CE、CLI、containerd、Buildx 和 Compose 插件，不固定为 26.1.4。
+无需手动解压 `docker-26.1.4.tgz`，脚本会解压到临时目录，退出时清理。
 
-脚本检查系统、架构和冲突软件包，然后配置 Docker 官方 ARM64 Noble 软件源，安装并启用服务。发现旧版发行版 Docker、独立 containerd/runc 或手工安装的 dockerd 时停止，避免自动移除已有运行环境。执行失败可修复网络或包冲突后重试。
+安装时输入 Docker 存储根目录，默认 `/home`，实际数据目录为 `/home/dockerInfo`。非 HTTPS 私有仓库可以直接回车跳过，也可输入 `192.168.1.20:5000` 或 `registry.example.com:5000`，不能包含协议前缀或路径。输入只检查基本字符，最终配置由随包 dockerd 校验，不联网解析或连接。
 
-保留已有 /etc/docker/daemon.json；新安装默认数据目录为 /var/lib/docker，日志策略使用 Docker 默认值。不会自动配置 HTTP 私有仓库或加入 docker 用户组。Compose 使用 `docker compose`。
+检测到已有 docker 命令时直接退出。脚本不逐项预检系统依赖，执行失败时停止并显示错误。
+
+## 安装行为
+
+- 安装 Docker 压缩包内的程序到 `/usr/bin/`，独立 runc 到 `/usr/local/bin/runc`。
+- 根据本地 `daemon.json` 生成并覆盖 `/etc/docker/daemon.json`，设置数据目录、日志轮转及可选的 `insecure-registries`。非 HTTPS 仓库仅适用于可信网络。
+- 安装仓库内的 systemd 服务文件，启用并启动 containerd 和 Docker。
+- 创建 docker 组，将 sudo 登录用户加入该组；重新登录后生效。
+- 安装 Compose 插件，同时提供 `docker compose` 和 `docker-compose` 两种命令。不安装 Buildx。
 
 ## 验证
 
@@ -22,11 +32,7 @@ sudo ./build.sh
 sudo systemctl is-active containerd docker
 sudo docker version
 sudo docker compose version
-sudo docker run --rm hello-world
+sudo docker info
 ```
 
-安装脚本验证服务及客户端/服务端版本；hello-world 需要额外访问容器镜像仓库，由用户按需执行。RDK 内核的容器网络、cgroup 和存储驱动兼容性以设备实际运行容器为准。
-
-本分支中的旧 x86 离线资源不再用于安装。x86 离线安装请使用原 `26.1.4` 分支。
-
-官方安装说明：https://docs.docker.com/engine/install/ubuntu/
+验证容器运行需要提前准备 ARM64 镜像归档，在设备上使用 `sudo docker load -i <镜像归档.tar>` 导入，再运行该镜像。安装脚本不会拉取 hello-world 或其他镜像。内核的容器网络、cgroup 和存储驱动兼容性仍需在实际设备上验证。
